@@ -22,10 +22,11 @@ set(MEMIF_LIB memif)
 set(PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../protos)
 
 # Find Protobuf and gRPC
-find_package(Protobuf CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
 message(STATUS "Using protobuf ${Protobuf_VERSION}")
-find_package(gRPC CONFIG REQUIRED)
-message(STATUS "Using gRPC ${gRPC_VERSION}")
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GRPC REQUIRED grpc)
+pkg_search_module(GRPCPP REQUIRED grpc++)
 
 # Ensure that the gRPC plugin is available
 find_program(GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
@@ -107,7 +108,7 @@ include_directories(
 add_library(media_proxy_lib STATIC ${proxy_srcs} ${PROTO_SRCS} ${PROTO_HDRS} ${GRPC_SRCS}
             ${GRPC_HDRS})
 target_link_libraries(media_proxy_lib PUBLIC m ${MTL_LIB} ${MEMIF_LIB} ${LIBFABRIC}
-    gRPC::grpc++ protobuf::libprotobuf)
+    grpc++ protobuf::libprotobuf)
 
 add_executable(media_proxy ${proxy_srcs} src/media_proxy.cc)
 target_link_libraries(media_proxy PRIVATE media_proxy_lib)

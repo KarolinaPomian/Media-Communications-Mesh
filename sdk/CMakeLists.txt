@@ -52,10 +52,11 @@ set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 set(CMAKE_INSTALL_IPATH ${CMAKE_INSTALL_PREFIX}/include)
 
 # Find Protobuf and gRPC
-find_package(Protobuf CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
 message(STATUS "Using protobuf ${Protobuf_VERSION}")
-find_package(gRPC CONFIG REQUIRED)
-message(STATUS "Using gRPC ${gRPC_VERSION}")
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GRPC REQUIRED grpc)
+pkg_search_module(GRPCPP REQUIRED grpc++)
 
 # Ensure that the gRPC plugin is available
 find_program(GRPC_CPP_PLUGIN_EXECUTABLE grpc_cpp_plugin)
@@ -117,7 +118,7 @@ target_include_directories(mcm_dp PUBLIC
     ${gRPC_INCLUDE_DIRS}
     ${PROTO_SRC_DIR}  # Include the directory where the generated files are located
 )
-target_link_libraries(mcm_dp PUBLIC memif gRPC::grpc++ protobuf::libprotobuf)
+target_link_libraries(mcm_dp PUBLIC memif grpc++ protobuf::libprotobuf)
 
 add_subdirectory(${MCMDP_SAMPLE_DIR})
 

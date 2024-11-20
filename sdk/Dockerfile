@@ -21,16 +21,10 @@ RUN apt-get update && \
     apt-get full-upgrade -y && \
     apt-get install --no-install-recommends -y \
         apt-utils build-essential make cmake git ca-certificates pkg-config nasm libbsd-dev && \
+    apt-get install -y protobuf-compiler protobuf-c-compiler libprotobuf23 libprotobuf-c-dev protobuf-compiler-grpc libgrpc++-dev libgrpc-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    mkdir -p "${GRPC_DIR}" && \
-    git clone --branch ${GPRC_VER} --recurse-submodules --depth 1 --shallow-submodules https://github.com/grpc/grpc "${GRPC_DIR}"
-
-# gRPC
-WORKDIR ${GRPC_DIR}/cmake/build
-RUN cmake -DgRPC_BUILD_TESTS=OFF -DgRPC_INSTALL=ON ../.. && \
-    make -j `nproc` && \
-    make install
+    mkdir -p "${GRPC_DIR}"
 
 COPY . ${MCM_DIR}
 WORKDIR ${MCM_DIR}/sdk
@@ -62,7 +56,7 @@ WORKDIR "/opt/mcm/"
 RUN apt-get update && \
     apt-get full-upgrade -y && \
     apt-get install --no-install-recommends -y \
-        libbsd0 vim net-tools ca-certificates sudo && \
+        libbsd0 vim net-tools ca-certificates sudo libprotobuf23 libgrpc++1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd -g 2110 vfio && \

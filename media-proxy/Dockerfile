@@ -41,6 +41,7 @@ RUN apt-get update --fix-missing && \
         m4 clang llvm zlib1g-dev libelf-dev libcap-ng-dev \
         gcc-multilib systemtap-sdt-dev librdmacm-dev \
         libfdt-dev autoconf automake autotools-dev libtool && \
+    apt-get install -y protobuf-compiler protobuf-c-compiler libprotobuf23 libprotobuf-c-dev protobuf-compiler-grpc libgrpc++-dev libgrpc-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -51,7 +52,6 @@ RUN git clone --branch main https://${GITHUB_CREDENTIALS}github.com/${MTL_REPO} 
     git clone --branch v${DPDK_VER} --depth 1 https://github.com/DPDK/dpdk.git ${DPDK_DIR} && \
     git clone --recurse-submodules https://github.com/xdp-project/xdp-tools.git ${XDP_DIR} && \
     git clone --depth 1 --branch v1.22.0 https://github.com/ofiwg/libfabric ${LIBFABRIC_DIR} && \
-    git clone --branch ${GPRC_VER} --recurse-submodules --depth 1 --shallow-submodules https://github.com/grpc/grpc ${GRPC_DIR} && \
     git clone https://github.com/OpenVisualCloud/SVT-JPEG-XS ${JPEGXS_DIR} && \
     git -C ${JPEGXS_DIR} checkout ${JPEGXS_VER} && \
     patch -p1 -i <(cat "${MTL_DIR}/patches/dpdk/${DPDK_VER}/"*.patch)
@@ -84,15 +84,6 @@ RUN meson setup build && \
 WORKDIR ${MTL_DIR}
 RUN ./build.sh && \
     DESTDIR="${PREFIX_DIR}" meson install -C build
-
-# gRPC
-WORKDIR ${GRPC_DIR}/cmake/build
-RUN cmake -DgRPC_BUILD_TESTS=OFF -DgRPC_INSTALL=ON ../.. && \
-    make -j `nproc` && \
-    make install && \
-    cmake -DgRPC_BUILD_TESTS=ON -DgRPC_INSTALL=ON ../.. && \
-    make -j `nproc` grpc_cli && \
-    cp grpc_cli "${PREFIX_DIR}/usr/local/bin/"
 
 # Build and install JPEG XS
 WORKDIR ${JPEGXS_DIR}/Build/linux
@@ -146,7 +137,7 @@ RUN apt-get update --fix-missing && \
     apt-get install -y --no-install-recommends \
        ca-certificates libbsd0 libnuma1 libjson-c5 libpcap0.8 libsdl2-2.0-0 libsdl2-ttf-2.0-0 \
        libssl3 zlib1g libelf1 libcap-ng0 libatomic1 librdmacm1 systemtap sudo \
-       librte-net-mlx4-22 librte-net-mlx5-22 libfdt1 ethtool && \
+       librte-net-mlx4-22 librte-net-mlx5-22 libfdt1 ethtool libprotobuf23 libgrpc++1 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     groupadd -g 2110 vfio && \
