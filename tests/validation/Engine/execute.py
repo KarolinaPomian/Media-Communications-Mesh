@@ -176,7 +176,7 @@ def run(command: str, cwd: str = None, testcmd: bool = False, timeout: int = 60)
     return cp
 
 
-def run_in_background(command: str, cwd: str, env: dict, result_queue: Queue, timeout: int = 60) -> None:
+def run_in_background(command: str, cwd: str, env: dict, result_queue: Queue, timeout: int = 60) -> subprocess.Popen:
     logging.debug(command)
 
     args = ["exec"]
@@ -192,13 +192,14 @@ def run_in_background(command: str, cwd: str, env: dict, result_queue: Queue, ti
         text=True,
     )
 
-    time.sleep(timeout)
-    proc.send_signal(2)
-    stdout, _ = proc.communicate(timeout=5)
+    def read_output():
+        stdout, _ = proc.communicate()
+        result_queue.put(stdout)
 
-    logging.info(f"rc: {proc.returncode}")
+    reader_thread = threading.Thread(target=read_output)
+    reader_thread.start()
 
-    result_queue.put(stdout)
+    return proc
 
 
 def log_fail(msg: str):
