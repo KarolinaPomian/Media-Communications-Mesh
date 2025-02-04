@@ -28,7 +28,6 @@ def mesh_agent_stop(process):
 
 
 #2 media proxy
-
 def media_proxy_start():
     logging.debug("Starting media_proxy.")
     result_queue = Queue()
@@ -48,12 +47,44 @@ def media_proxy_stop(process):
     Engine.execute.killproc(process)
 
 #3 receiver
+def receiver_run(f:str, conn_type: str, frame_rate: int, video_size: str, pixel_format: str, output_file_name: str):
+    logging.debug("Starting receiver.")
+    result_queue = Queue()
+    process = Engine.execute.run_in_background(
+        command=f"sudo ffmpeg -f {f} -conn_type {conn_type} -frame_rate {frame_rate} -video_size {video_size} -pixel_format {pixel_format} -i - {output_file_name} -y",
+        cwd="/usr/local/bin",
+        env=None,
+        result_queue=result_queue,
+        timeout=0,
+    )
+    result = result_queue.get()
+    logging.debug(f"receiver output: {result}")
+    return process
 
-# sudo ffmpeg -f mcm -conn_type multipoint-group -frame_rate 60 -video_size 2048x858 -pixel_format yuv422p10le -i - out_video.yuv -yp -frame_rate 60 -video_size 2048x858 -pixel
+def receiver_stop(process):
+    logging.debug("Stopping receiver.")
+    Engine.execute.killproc(process)
 
 #4 transmitter
+def transmitter_run(f:str, conn_type: str, frame_rate: int, video_size: str, pixel_format: str, input_file: str):
+    logging.debug("Starting transmitter.")
+    result_queue = Queue()
+    process = Engine.execute.run_in_background(
+        command=f"sudo ffmpeg -stream_loop -1 -re -video_size {video_size} -pixel_format {pixel_format} -i {input_file} -f mcm -conn_type {conn_type} -frame_rate {frame_rate} -video_size {video_size} -pixel_format {pixel_format} -",
+        cwd="/usr/local/bin",
+        env=None,
+        result_queue=result_queue,
+        timeout=0,
+    )
+    result = result_queue.get()
+    logging.debug(f"transmitter output: {result}")
+    return process
 
-# sudo ffmpeg -stream_loop -1 -re -video_size 2048x858 -pixel_format yuv422p10le -i CosmosLaundromat_2048x858_24fps_24frames_yuv422p10le.yuv -f mcm -conn_type multipoint-group -frame_rate 60 -video_size 2048x858 -pixel_format yuv422p10le - aundromat_2048x858_24fps_24frames_yuv422p10le.yuv -f mcm -conn_type multipoint-group -frame_rate 60 -video_size 2048x858
+
+def transmitter_stop(process):   
+    logging.debug("Stopping transmitter.")
+    Engine.execute.killproc(process)
+ 
 
 # execute test
 #1 mesh agent on
