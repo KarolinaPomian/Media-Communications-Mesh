@@ -2,10 +2,14 @@
 # Copyright 2024-2025 Intel Corporation
 # Media Communications Mesh
 
+import logging
 import os
+from queue import Queue
 from typing import Dict
 
 import pytest
+
+import Engine.execute
 
 from .stash import clear_result_media, remove_result_media
 
@@ -98,3 +102,22 @@ def test_time(request):
     if test_time is None:
         return 30
     return int(test_time)
+
+@pytest.fixture(scope="session")
+def mesh_agent():
+    logging.debug("Starting mesh-agent.")
+    result_queue = Queue()
+    process = Engine.execute.run_in_background(
+        command="mesh-agent",
+        cwd="/usr/local/bin",
+        env=None,
+        result_queue=result_queue,
+        timeout=0,
+    )
+    result = result_queue.get()
+    logging.debug(f"mesh-agent output: {result}")
+
+    yield process
+
+    logging.debug("Stopping mesh-agent.")
+    Engine.execute.killproc(process)
