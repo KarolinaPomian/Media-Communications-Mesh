@@ -13,3 +13,4 @@ def pytest_addoption(parser):
     parser.addoption("--nic", help="list of PCI IDs of network devices")
     parser.addoption("--dma", help="list of PCI IDs of DMA devices")
     parser.addoption("--time", help="seconds to run every test (default=15)")
+    parser.addoption("--mtl_path", help="path to MTL repository (default ../../../Media-Transport-Library)")

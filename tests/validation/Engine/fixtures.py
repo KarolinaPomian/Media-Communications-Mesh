@@ -103,6 +103,16 @@ def test_time(request):
         return 30
     return int(test_time)
 
+
+@pytest.fixture(scope="session", autouse=True)
+def mtl_path(request):
+    mtl_path = request.config.getoption("--mtl_path")
+    if mtl_path is None:
+        mtl_path = "../../../Media-Transport-Library"
+    os.environ["mtl_path"] = mtl_path
+    return mtl_path
+
+
 @pytest.fixture(scope="session")
 def mesh_agent():
     logging.debug("Starting mesh-agent.")
