@@ -5,31 +5,28 @@
 import os
 import pytest
 
-import Engine.client_json
-import Engine.connection
-import Engine.connection_json
 import Engine.engine_ffmpeg as utils
 import Engine.execute
 import Engine.payload
 from Engine.media_files import yuv_files
 
 @pytest.mark.parametrize("video_type", ["i720p23", "i720p24", "i720p25"])
-def test_video_transmission(mesh_agent, media: str, nic_port_list, video_type: str) -> None:
+def test_video_transmission(mesh_agent, media: str, nic_port_list, nic_ip_list, video_type: str) -> None:
     media_proxy_configs = [{
-        "sdk_port": None, 
+        "sdk_port": "8001", 
         "agent_address": None,
-        "st2110_device": None, #machine nics pci address
-        "st2110_ip": None,
-        "rdma_ip": None, #port ranges should not cross between media proxies 
-        "rdma_ports": None
+        "st2110_device": nic_port_list[0],
+        "st2110_ip": nic_ip_list[0],
+        "rdma_ip": "192.168.96.10",
+        "rdma_ports": "9100-9199"
     },
     {
-        "sdk_port": None, 
+        "sdk_port": "8002", 
         "agent_address": None, 
-        "st2110_device": None, 
-        "st2110_ip": None, 
-        "rdma_ip": None, 
-        "rdma_ports": None
+        "st2110_device": nic_port_list[1], 
+        "st2110_ip": nic_ip_list[1], 
+        "rdma_ip": "192.168.96.11", 
+        "rdma_ports": "9200-9299"
     }]
     payload = Engine.payload.Video(
         width=yuv_files[video_type]["width"],
@@ -37,7 +34,6 @@ def test_video_transmission(mesh_agent, media: str, nic_port_list, video_type: s
         fps=yuv_files[video_type]["fps"],
         pixelFormat=utils.video_file_format_to_payload_format(yuv_files[video_type]["file_format"]),
     )
-    # Use a specified file from media_files.py
     media_file = yuv_files[video_type]["filename"]
     transmitter_config = {  
         "mcm_media_proxy_port": None,
