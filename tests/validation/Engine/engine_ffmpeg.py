@@ -4,10 +4,11 @@
 
 import logging
 import os
+from pathlib import Path
 from queue import Queue
 import subprocess
 from time import sleep
-
+from Engine.integrity import calculate_yuv_frame_size, check_st20p_integrity
 import Engine.execute
 
 video_format_matches = {
@@ -19,9 +20,38 @@ video_format_matches = {
 def video_file_format_to_payload_format(pixel_format: str) -> str:
     return video_format_matches.get(pixel_format, pixel_format) # matched if matches, else original
 
-def disable_vf(nic: str):
+def list_vfs():
     try:
-        result = Engine.execute.run(f"sudo {os.environ['mtl_path']}/script/nicctl.sh disable_vf {nic}")
+        result = subprocess.run(
+            ["sudo", f"{os.environ['mtl_path']}/script/nicctl.sh", "list", "all"],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            logging.error(f"Failed to list VFs: {result.stderr}")
+            return None
+        return result.stdout
+    except Exception as e:
+        logging.error(f"An error occurred while listing VFs: {e}")
+        return None
+
+def is_vf_present(nic: str):
+    vfs_list = list_vfs()
+    if vfs_list is None:
+        return False
+    return nic in vfs_list
+
+def disable_vf(nic: str):
+    if not is_vf_present(nic):
+        logging.debug(f"VF for NIC {nic} is not present, no need to disable.")
+        return
+
+    try:
+        result = subprocess.run(
+            ["sudo", f"{os.environ['mtl_path']}/script/nicctl.sh", "disable_vf", nic],
+            capture_output=True,
+            text=True
+        )
         if "succ" in result.stdout:
             logging.debug(f"Successfully disabled VF for NIC {nic}")
         else:
@@ -35,8 +65,7 @@ def create_vf(nic: str):
         logging.debug(f"Successfully created VF for NIC {nic}")
     else:
         logging.error(f"Failed to create VF for NIC {nic}")
-
-#2 media proxy
+        
 def media_proxy_start(sdk_port = None, agent_address = None, st2110_device = None, st2110_ip = None, rdma_ip = None, rdma_ports = None) -> Engine.execute.AsyncProcess:
     logging.debug("Starting media_proxy.")
     result_queue = Queue()
@@ -148,9 +177,28 @@ def handle_transmitter_failure(tx: subprocess.CompletedProcess) -> None:
     if tx.returncode != 0:
         Engine.execute.log_fail(f"Transmitter failed with return code {tx.returncode}")
 
+def remove_sent_file(full_path: Path) -> None:
+    try:
+        full_path
+        logging.debug(f"Removed: {full_path}")
+    # except makes the test pass if there's no file to remove
+    except (FileNotFoundError, NotADirectoryError):
+        logging.debug(f"Cannot remove. File does not exist: {full_path}")
+
 
 # execute test
-def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, transmitter_config: dict) -> None:
+def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, transmitter_config: dict, media_info = {}) -> None:
+    """
+    Run an FFmpeg test with the given media proxy, receiver, and transmitter configurations.
+
+    Parameters:
+    media_proxy_configs (list[dict]): List of configurations for media proxy processes.
+    receiver_config (dict): Configuration for the receiver process.
+    transmitter_config (dict): Configuration for the transmitter process.
+
+    Returns:
+    None
+    """
     media_proxy_processes = []
     receiver_process = None
     try:
@@ -159,13 +207,21 @@ def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, tran
             media_proxy_processes.append(media_proxy_process)
         receiver_process = receiver_run(receiver_config)       
         transmitter_process = transmitter_run(transmitter_config)
-        handle_transmitter_failure(transmitter_process)
+        if transmitter_process.returncode != 0:
+            logging.error(f"Transmitter failed with return code {transmitter_process.returncode}")
+            return
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     finally:
         if receiver_process:
             receiver_stop(receiver_process)
         for media_proxy_process in media_proxy_processes:
-            media_proxy_stop(media_proxy_process)
+            if media_proxy_process:
+                media_proxy_stop(media_proxy_process)
         # TODO: integrity
+        frame_size = calculate_yuv_frame_size(media_info.get("width"), media_info.get("height"), media_info.get("pixelFormat"))
+        integrity_check = check_st20p_integrity(transmitter_config["video_file_path"], str(receiver_config["output_file_path"]), frame_size)
+        logging.debug(f"Integrity: {integrity_check}")
+        if "output_file_path" in receiver_config:
+            remove_sent_file(receiver_config["output_file_path"])
 
