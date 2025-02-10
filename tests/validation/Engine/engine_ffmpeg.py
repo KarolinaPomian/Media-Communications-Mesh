@@ -20,10 +20,21 @@ def video_file_format_to_payload_format(pixel_format: str) -> str:
     return video_format_matches.get(pixel_format, pixel_format) # matched if matches, else original
 
 def disable_vf(nic: str):
-    Engine.execute.run(f"sudo {os.environ['mtl_path']}/script/nicctl.sh disable_vf {nic}", timeout=120)
+    try:
+        result = Engine.execute.run(f"sudo {os.environ['mtl_path']}/script/nicctl.sh disable_vf {nic}")
+        if "succ" in result.stdout:
+            logging.debug(f"Successfully disabled VF for NIC {nic}")
+        else:
+            logging.error(f"Failed to disable VF for NIC {nic}")
+    except Exception as e:
+        logging.error(f"An error occurred while disabling VF for NIC {nic}: {e}")
 
 def create_vf(nic: str):
-    Engine.execute.run(f"sudo {os.environ['mtl_path']}/script/nicctl.sh create_vf {nic}", timeout=120)
+    result = Engine.execute.run(f"sudo {os.environ['mtl_path']}/script/nicctl.sh create_vf {nic}")
+    if "succ" in result.stdout:
+        logging.debug(f"Successfully created VF for NIC {nic}")
+    else:
+        logging.error(f"Failed to create VF for NIC {nic}")
 
 #2 media proxy
 def media_proxy_start(sdk_port = None, agent_address = None, st2110_device = None, st2110_ip = None, rdma_ip = None, rdma_ports = None) -> Engine.execute.AsyncProcess:
@@ -139,19 +150,22 @@ def handle_transmitter_failure(tx: subprocess.CompletedProcess) -> None:
 
 
 # execute test
-def run(media_proxy_configs: list[dict], receiver_config: dict, transmitter_config: dict) -> None:
+def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, transmitter_config: dict) -> None:
+    media_proxy_processes = []
+    receiver_process = None
     try:
-        media_proxy_processes = []
         for config in media_proxy_configs:
             media_proxy_process = media_proxy_start(**config)
             media_proxy_processes.append(media_proxy_process)
         receiver_process = receiver_run(receiver_config)       
         transmitter_process = transmitter_run(transmitter_config)
         handle_transmitter_failure(transmitter_process)
-        receiver_stop(receiver_process)
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+    finally:
+        if receiver_process:
+            receiver_stop(receiver_process)
         for media_proxy_process in media_proxy_processes:
             media_proxy_stop(media_proxy_process)
-    finally:
         # TODO: integrity
-        pass
 
