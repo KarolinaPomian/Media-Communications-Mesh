@@ -97,6 +97,20 @@ def nic_port_list(request):
 
 
 @pytest.fixture(scope="session")
+def nic_ip_list(request):
+    nic_ip = request.config.getoption("--nic_ip")
+    assert nic_ip is not None, "--nic parameter not provided"
+    return nic_ip.split(",")
+
+
+@pytest.fixture(scope="session")
+def vfio_pci_list(request):
+    vfio_pci = request.config.getoption("--vfio_pci")
+    assert vfio_pci is not None, "--nic parameter not provided"
+    return vfio_pci.split(",")
+
+
+@pytest.fixture(scope="session")
 def test_time(request):
     test_time = request.config.getoption("--time")
     if test_time is None:

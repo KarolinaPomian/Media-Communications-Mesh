@@ -11,6 +11,8 @@ def pytest_addoption(parser):
     parser.addoption("--media", help="path to media asset (default /mnt/media)")
     parser.addoption("--build", help="path to build (default ../..)")
     parser.addoption("--nic", help="list of PCI IDs of network devices")
+    parser.addoption("--nic_ip", help="list of IP addresses of network devices")
+    parser.addoption("--vfio_pci", help="list of PCI IDs of VFIO devices")
     parser.addoption("--dma", help="list of PCI IDs of DMA devices")
     parser.addoption("--time", help="seconds to run every test (default=15)")
     parser.addoption("--mtl_path", help="path to MTL repository (default ../../../Media-Transport-Library)")
