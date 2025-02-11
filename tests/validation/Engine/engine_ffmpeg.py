@@ -10,6 +10,7 @@ import subprocess
 from time import sleep
 from Engine.integrity import calculate_yuv_frame_size, check_st20p_integrity
 import Engine.execute
+from Engine.media_files import ffmpeg_files
 
 video_format_matches = {
     # file_format : payload format
@@ -19,6 +20,19 @@ video_format_matches = {
 
 def video_file_format_to_payload_format(pixel_format: str) -> str:
     return video_format_matches.get(pixel_format, pixel_format) # matched if matches, else original
+
+
+def choose_file(**params) -> dict:
+    """
+    Choose a file based on provided parameters.
+    
+    :param params: A dictionary of parameters to match (e.g., format, file_format, dimensions).
+    :return: A dictionary containing file information.
+    """
+    for file_info in ffmpeg_files.values():
+        if all(file_info.get(key) == value for key, value in params.items()):
+            return file_info
+    raise ValueError(f"No matching file found for parameters: {params}")
 
 def list_vfs():
     try:

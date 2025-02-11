@@ -34,7 +34,7 @@ def test_video_transmission(mesh_agent, media: str,nic_port_list,  vfio_pci_list
         fps=yuv_files[video_type]["fps"],
         pixelFormat=utils.video_file_format_to_payload_format(yuv_files[video_type]["file_format"]),
     )
-    # Use a specified file from media_files.py
+    
     media_file = yuv_files[video_type]["filename"]
     transmitter_config = {  
         "mcm_media_proxy_port": None,
