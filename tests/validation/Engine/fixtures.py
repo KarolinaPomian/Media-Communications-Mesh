@@ -125,23 +125,3 @@ def mtl_path(request):
         mtl_path = "../../../Media-Transport-Library"
     os.environ["mtl_path"] = mtl_path
     return mtl_path
-
-
-@pytest.fixture(scope="session")
-def mesh_agent():
-    logging.debug("Starting mesh-agent.")
-    result_queue = Queue()
-    process = Engine.execute.run_in_background(
-        command="mesh-agent",
-        cwd="/usr/local/bin",
-        env=None,
-        result_queue=result_queue,
-        timeout=0,
-    )
-    result = result_queue.get()
-    logging.debug(f"mesh-agent output: {result}")
-
-    yield process
-
-    logging.debug("Stopping mesh-agent.")
-    Engine.execute.killproc(process)
