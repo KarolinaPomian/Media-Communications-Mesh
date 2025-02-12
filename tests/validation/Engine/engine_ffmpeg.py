@@ -10,6 +10,7 @@ import subprocess
 from time import sleep
 from Engine.integrity import calculate_yuv_frame_size, check_st20p_integrity
 import Engine.execute
+from Engine.fixtures_mcm import kill_all_existing_media_proxies
 from Engine.media_files import ffmpeg_files
 
 video_format_matches = {
@@ -97,20 +98,20 @@ def media_proxy_start(sdk_port = None, agent_address = None, st2110_device = Non
     if rdma_ports:
         command += f" -p {rdma_ports}"
     
-    process = Engine.execute.run_in_background(
+    process = Engine.execute.call(
         command=command,
-        cwd="/usr/local/bin",
-        env=None,
-        result_queue=result_queue,
-        timeout=0,
+        cwd="/usr/local/bin"
     )
-    result = result_queue.get()
-    logging.debug(f"media_proxy output: {result}")
+    if process.process.returncode:
+        logging.debug(f"media_proxy's return code: {process.returncode} of type {type(process.returncode)}")
     return process
 
 def media_proxy_stop(process):
     logging.debug(f"Stopping media_proxy.")
-    Engine.execute.killproc(process)
+    process.process.terminate()
+    if not process.process.returncode:
+        logging.debug(f"media_proxy terminated properly")
+    sleep(2)
 
 #3 receiver
 def receiver_run(config: dict) -> Engine.execute.AsyncProcess:
@@ -216,11 +217,20 @@ def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, tran
     media_proxy_processes = []
     receiver_process = None
     try:
+        kill_all_existing_media_proxies()
         for config in media_proxy_configs:
             media_proxy_process = media_proxy_start(**config)
             media_proxy_processes.append(media_proxy_process)
-        receiver_process = receiver_run(receiver_config)       
+            logging.debug("sleeping for 2 seconds")
+            sleep(2)
+        logging.debug("sleeping for 30 seconds")
+        sleep(30)
+        receiver_process = receiver_run(receiver_config)
+        logging.debug("sleeping for 2 seconds")
+        sleep(2)
         transmitter_process = transmitter_run(transmitter_config)
+        logging.debug("sleeping for 2 seconds")
+        sleep(2)
         if transmitter_process.returncode != 0:
             logging.error(f"Transmitter failed with return code {transmitter_process.returncode}")
             return
