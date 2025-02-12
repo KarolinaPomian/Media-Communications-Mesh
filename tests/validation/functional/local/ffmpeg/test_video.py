@@ -10,8 +10,13 @@ import Engine.execute
 import Engine.payload
 from Engine.media_files import yuv_files
 
-@pytest.mark.parametrize("video_type", ["i720p23", "i720p24", "i720p25"])
-def test_video_transmission(mesh_agent, media: str, nic_port_list, video_type: str) -> None:
+dimensions = [dict(width=1280, height=720), dict(width=1920, height=1080)]
+dimension_ids = [f'{dim["width"]}x{dim["height"]}' for dim in dimensions]
+@pytest.mark.parametrize("format", ["YUV_422_10bit"])
+@pytest.mark.parametrize("file_format", ["YUV422PLANAR10LE"])
+@pytest.mark.parametrize("dimensions", dimensions, ids=dimension_ids)
+@pytest.mark.parametrize("frame_rate", [23, 24, 25, 30, 60])
+def test_video_transmission(media: str,nic_port_list,  vfio_pci_list, format: str, file_format: str, dimensions: dict,  frame_rate: int) -> None:
     media_proxy_configs = [{
         "sdk_port": None,
         "agent_address": None,
@@ -20,13 +25,14 @@ def test_video_transmission(mesh_agent, media: str, nic_port_list, video_type: s
         "rdma_ip": None,
         "rdma_ports": None
     }]
+    file_info = utils.choose_file(format=format, file_format=file_format, width=dimensions['width'], height=dimensions['height'])
     payload = Engine.payload.Video(
-        width=yuv_files[video_type]["width"],
-        height=yuv_files[video_type]["height"],
-        fps=yuv_files[video_type]["fps"],
-        pixelFormat=utils.video_file_format_to_payload_format(yuv_files[video_type]["file_format"]),
+        width=dimensions['width'],
+        height=dimensions['height'],
+        fps=frame_rate,
+        pixelFormat=utils.video_file_format_to_payload_format(file_info["file_format"]),
     )
-    media_file = yuv_files[video_type]["filename"]
+    media_file = file_info["filename"]
     transmitter_config = {
         "mcm_media_proxy_port": None,
         "stream_loop": None,
@@ -63,9 +69,6 @@ def test_video_transmission(mesh_agent, media: str, nic_port_list, video_type: s
         "fps": payload.fps,
         "pixelFormat": payload.pixelFormat,
     }
-
-    for nic in nic_port_list:
-        utils.create_vf(nic)
 
     utils.run_ffmpeg_test(
         media_proxy_configs = media_proxy_configs,
