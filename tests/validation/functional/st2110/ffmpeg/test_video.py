@@ -15,7 +15,7 @@ dimension_ids = [f'{dim["width"]}x{dim["height"]}' for dim in dimensions]
 @pytest.mark.parametrize("file_format", ["YUV422PLANAR10LE"])
 @pytest.mark.parametrize("dimensions", dimensions, ids=dimension_ids)
 @pytest.mark.parametrize("frame_rate", [23, 24, 25, 30, 60])
-def test_video_transmission(mesh_agent, media: str,nic_port_list,  vfio_pci_list, format: str, file_format: str, dimensions: dict,  frame_rate: int) -> None:
+def test_video_transmission(media: str,nic_port_list,  vfio_pci_list, format: str, file_format: str, dimensions: dict,  frame_rate: int) -> None:
     media_proxy_configs = [{
         "sdk_port": "8001", 
         "agent_address": None, 
@@ -44,27 +44,27 @@ def test_video_transmission(mesh_agent, media: str,nic_port_list,  vfio_pci_list
     
     media_file = file_info["filename"]
     transmitter_config = {  
-        "mcm_media_proxy_port": None,
+        "mcm_media_proxy_port": 8001,
         "stream_loop": None,
         "video_file_path": os.path.join(media, media_file),
         "f": "mcm",
-        "conn_type": "multipoint-group",
-        "transport": None,
-        "ip_addr": None,
-        "port": None,
+        "conn_type": "st2110",
+        "transport": "st2110-20",
+        "ip_addr": "192.168.96.11",
+        "port": "9002",
         "frame_rate": payload.fps,
         "video_size": f"{payload.width}x{payload.height}",
         "pixel_format": payload.pixelFormat.lower()
     }
 
     receiver_config = {
-        "mcm_media_proxy_port": None,
+        "mcm_media_proxy_port": 8002,
         "re": None,
         "f": "mcm",
-        "conn_type": "multipoint-group",
-        "transport": None,
-        "ip_addr": None,
-        "port": None,
+        "conn_type": "st2110",
+        "transport": "st2110-20",
+        "ip_addr": "192.168.96.10",
+        "port": "9002",
         "frame_rate": payload.fps,
         "video_size": f"{payload.width}x{payload.height}",
         "pixel_format": payload.pixelFormat.lower(),
@@ -72,8 +72,6 @@ def test_video_transmission(mesh_agent, media: str,nic_port_list,  vfio_pci_list
         "remote_ip": None,
         "remote_port": None
     }
-    for nic in nic_port_list:
-        utils.create_vf(nic)
 
     media_info = {
         "width": payload.width,

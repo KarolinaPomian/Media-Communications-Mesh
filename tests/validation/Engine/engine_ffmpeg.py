@@ -81,9 +81,25 @@ def create_vf(nic: str):
     else:
         logging.error(f"Failed to create VF for NIC {nic}")
         
+
+def mesh_agent():
+    logging.debug("Starting mesh-agent.")
+    result_queue = Queue()
+    process = Engine.execute.call(
+        command="mesh-agent",
+        cwd=".",
+    )
+    result = result_queue.get()
+    logging.debug(f"mesh-agent output: {result}")
+
+    yield process
+
+    logging.debug("Stopping mesh-agent.")
+    Engine.execute.killproc(process)
+
+
 def media_proxy_start(sdk_port = None, agent_address = None, st2110_device = None, st2110_ip = None, rdma_ip = None, rdma_ports = None) -> Engine.execute.AsyncProcess:
     logging.debug("Starting media_proxy.")
-    result_queue = Queue()
     command = "sudo media_proxy"
     if sdk_port:
         command += f" -t {sdk_port}"
@@ -100,8 +116,9 @@ def media_proxy_start(sdk_port = None, agent_address = None, st2110_device = Non
     
     process = Engine.execute.call(
         command=command,
-        cwd="/usr/local/bin"
+        cwd="."
     )
+    sleep(0.2) # short sleep used for mesh-agent to spin up
     if process.process.returncode:
         logging.debug(f"media_proxy's return code: {process.returncode} of type {type(process.returncode)}")
     return process
@@ -194,7 +211,7 @@ def handle_transmitter_failure(tx: subprocess.CompletedProcess) -> None:
 
 def remove_sent_file(full_path: Path) -> None:
     try:
-        full_path
+        os.remove(full_path)
         logging.debug(f"Removed: {full_path}")
     # except makes the test pass if there's no file to remove
     except (FileNotFoundError, NotADirectoryError):
@@ -218,34 +235,46 @@ def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, tran
     receiver_process = None
     try:
         kill_all_existing_media_proxies()
+        mesh_agent_proc = Engine.execute.call(f"mesh-agent", cwd=".")
+        sleep(0.2) # short sleep used for mesh-agent to spin up
+        if mesh_agent_proc.process.returncode:
+            logging.debug(f"mesh-agent's return code: {mesh_agent_proc.returncode} of type {type(mesh_agent_proc.returncode)}")
         for config in media_proxy_configs:
             media_proxy_process = media_proxy_start(**config)
             media_proxy_processes.append(media_proxy_process)
-            logging.debug("sleeping for 2 seconds")
-            sleep(2)
-        logging.debug("sleeping for 30 seconds")
-        sleep(30)
+            logging.debug("sleeping for 0.2 seconds")
+            sleep(0.2)
+        logging.debug("sleeping for 2 seconds")
+        sleep(50)
         receiver_process = receiver_run(receiver_config)
-        logging.debug("sleeping for 2 seconds")
-        sleep(2)
+        logging.debug("sleeping for 5 seconds")
+        sleep(5)
         transmitter_process = transmitter_run(transmitter_config)
-        logging.debug("sleeping for 2 seconds")
-        sleep(2)
         if transmitter_process.returncode != 0:
             logging.error(f"Transmitter failed with return code {transmitter_process.returncode}")
             return
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     finally:
-        if receiver_process:
-            receiver_stop(receiver_process)
-        for media_proxy_process in media_proxy_processes:
-            if media_proxy_process:
-                media_proxy_stop(media_proxy_process)
+        
         # TODO: integrity
         frame_size = calculate_yuv_frame_size(media_info.get("width"), media_info.get("height"), media_info.get("pixelFormat"))
         integrity_check = check_st20p_integrity(transmitter_config["video_file_path"], str(receiver_config["output_file_path"]), frame_size)
         logging.debug(f"Integrity: {integrity_check}")
         if "output_file_path" in receiver_config:
             remove_sent_file(receiver_config["output_file_path"])
+        if not integrity_check:
+            Engine.execute.log_fail("At least one of the received frames has not passed the integrity test")
+
+    yield
+
+    if receiver_process:
+        receiver_stop(receiver_process)
+    for media_proxy_process in media_proxy_processes:
+        if media_proxy_process:
+            media_proxy_stop(media_proxy_process)
+    mesh_agent_proc.process.terminate()
+    if not mesh_agent_proc.process.returncode:
+        logging.debug(f"mesh-agent terminated properly")
+
 
