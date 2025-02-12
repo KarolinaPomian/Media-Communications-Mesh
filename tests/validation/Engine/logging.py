@@ -215,7 +215,7 @@ def log_case(request, caplog: pytest.LogCaptureFixture):
 
     commands = []
     for record in caplog.get_records("call"):
-        if record.levelno == TESTCMD:
+        if record.levelno == TESTCMD or record.levelno == CMD:
             commands.append(record.message)
 
     csv_add_test(
