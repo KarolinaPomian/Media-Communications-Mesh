@@ -218,7 +218,6 @@ def remove_sent_file(full_path: Path) -> None:
         logging.debug(f"Cannot remove. File does not exist: {full_path}")
 
 
-# execute test
 def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, transmitter_config: dict, media_info = {}) -> None:
     """
     Run an FFmpeg test with the given media proxy, receiver, and transmitter configurations.
@@ -233,30 +232,36 @@ def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, tran
     """
     media_proxy_processes = []
     receiver_process = None
+    mesh_agent_proc = None
     try:
         kill_all_existing_media_proxies()
         mesh_agent_proc = Engine.execute.call(f"mesh-agent", cwd=".")
-        sleep(0.2) # short sleep used for mesh-agent to spin up
+        sleep(0.2)  # short sleep used for mesh-agent to spin up
         if mesh_agent_proc.process.returncode:
             logging.debug(f"mesh-agent's return code: {mesh_agent_proc.returncode} of type {type(mesh_agent_proc.returncode)}")
+        
         for config in media_proxy_configs:
             media_proxy_process = media_proxy_start(**config)
             media_proxy_processes.append(media_proxy_process)
             logging.debug("sleeping for 0.2 seconds")
             sleep(0.2)
+        
         logging.debug("sleeping for 2 seconds")
-        sleep(50)
+        sleep(2)
+        
         receiver_process = receiver_run(receiver_config)
         logging.debug("sleeping for 5 seconds")
         sleep(5)
+        
         transmitter_process = transmitter_run(transmitter_config)
+        transmitter_process.wait()  # Wait for the transmitter process to complete
+        
         if transmitter_process.returncode != 0:
             logging.error(f"Transmitter failed with return code {transmitter_process.returncode}")
             return
     except Exception as e:
         logging.error(f"An error occurred: {e}")
     finally:
-        
         # TODO: integrity
         frame_size = calculate_yuv_frame_size(media_info.get("width"), media_info.get("height"), media_info.get("pixelFormat"))
         integrity_check = check_st20p_integrity(transmitter_config["video_file_path"], str(receiver_config["output_file_path"]), frame_size)
@@ -266,15 +271,12 @@ def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, tran
         if not integrity_check:
             Engine.execute.log_fail("At least one of the received frames has not passed the integrity test")
 
-    yield
-
-    if receiver_process:
-        receiver_stop(receiver_process)
-    for media_proxy_process in media_proxy_processes:
-        if media_proxy_process:
-            media_proxy_stop(media_proxy_process)
-    mesh_agent_proc.process.terminate()
-    if not mesh_agent_proc.process.returncode:
-        logging.debug(f"mesh-agent terminated properly")
-
-
+        if receiver_process:
+            receiver_stop(receiver_process)
+        for media_proxy_process in media_proxy_processes:
+            if media_proxy_process:
+                media_proxy_stop(media_proxy_process)
+        if mesh_agent_proc:
+            mesh_agent_proc.process.terminate()
+            if not mesh_agent_proc.process.returncode:
+                logging.debug(f"mesh-agent terminated properly")
