@@ -16,19 +16,26 @@ jxs_files = dict(
 )
 
 ffmpeg_files = dict(
-    i720={
+    file1={
         "filename": "HDR_BBC_v4_008_Penguin1_1280x720_10bit_25Hz_P422_180frames.yuv",
         "format": "YUV_422_10bit",
         "file_format": "YUV422PLANAR10LE",
         "width": 1280,
         "height": 720,
     },
-    i1080={
+    file2={
         "filename": "HDR_BBC_v4_008_Penguin1_1920x1080_10bit_25Hz_P422_180frames.yuv",
         "format": "YUV_422_10bit",
         "file_format": "YUV422PLANAR10LE",
         "width": 1920,
         "height": 1080,
+    },
+    file3={
+        "filename": "HDR_BBC_v4_008_Penguin1_3840x2160_10bit_25Hz_P422_180frames.yuv",
+        "format": "YUV_422_10bit",
+        "file_format": "YUV422PLANAR10LE",
+        "width": 3840,
+        "height": 2160,
     },
 )
 

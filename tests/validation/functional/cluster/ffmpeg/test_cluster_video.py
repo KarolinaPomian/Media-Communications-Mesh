@@ -11,7 +11,7 @@ import Engine.payload
 from Engine.media_files import yuv_files
 
 @pytest.mark.parametrize("video_type", ["i720p23", "i720p24", "i720p25"])
-def test_video_transmission(mesh_agent, media: str, nic_port_list, nic_ip_list, video_type: str) -> None:
+def test_video_transmission(media: str, nic_port_list, nic_ip_list, video_type: str) -> None:
     media_proxy_configs = [{
         "sdk_port": "8001", 
         "agent_address": None,
