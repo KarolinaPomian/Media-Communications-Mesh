@@ -254,8 +254,7 @@ def run_ffmpeg_test(media_proxy_configs: list[dict], receiver_config: dict, tran
         sleep(5)
         
         transmitter_process = transmitter_run(transmitter_config)
-        transmitter_process.wait()  # Wait for the transmitter process to complete
-        
+        sleep(30)
         if transmitter_process.returncode != 0:
             logging.error(f"Transmitter failed with return code {transmitter_process.returncode}")
             return
